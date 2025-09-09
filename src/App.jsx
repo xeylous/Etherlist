@@ -6,7 +6,7 @@ export default function App() {
   const [account, setAccount] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false); // new loading state
+  const [loading, setLoading] = useState(false);
 
   // Connect wallet
   const connectWallet = async () => {
@@ -20,11 +20,27 @@ export default function App() {
     }
   };
 
+  // Change wallet (switch account)
+  const changeWallet = async () => {
+    if (window.ethereum) {
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      setAccount(accounts[0]);
+      loadTasks();
+    }
+  };
+
+  // Disconnect wallet
+  const disconnectWallet = () => {
+    setAccount(null);
+    setTasks([]);
+  };
+
   // Load tasks
   const loadTasks = async () => {
     if (!window.ethereum) return;
     const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
     const contract = new ethers.Contract(
       CONTRACT_ADDRESS,
       CONTRACT_ABI,
@@ -37,13 +53,16 @@ export default function App() {
       const task = await contract.tasks(i);
       loadedTasks.push(task);
     }
-    setTasks(loadedTasks.reverse());
+
+    // filter out completed tasks
+    const pendingTasks = loadedTasks.filter((t) => !t.completed);
+    setTasks(pendingTasks.reverse());
   };
 
   // Add task
   const addTask = async () => {
     if (!input) return;
-    setLoading(true); // start loading
+    setLoading(true);
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(
@@ -53,9 +72,9 @@ export default function App() {
     );
 
     const tx = await contract.createTask(input);
-    await tx.wait(); // wait for transaction confirmation
+    await tx.wait();
     setInput("");
-    setLoading(false); // stop loading
+    setLoading(false);
     loadTasks();
   };
 
@@ -90,6 +109,13 @@ export default function App() {
     </div>
   );
 
+  // format timestamp → assuming your contract stores `timestamp`
+  const formatTime = (ts) => {
+    if (!ts) return "";
+    const date = new Date(Number(ts) * 1000);
+    return date.toLocaleString();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 text-white flex flex-col items-center p-6">
       {/* Navbar */}
@@ -97,10 +123,25 @@ export default function App() {
         <h1 className="text-3xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400">
           Etherlist
         </h1>
+
         {account ? (
-          <span className="px-4 py-2 bg-indigo-600 rounded-full text-sm font-medium truncate max-w-[200px]">
-            {account}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="px-4 py-2 bg-indigo-600 rounded-full text-sm font-medium truncate max-w-[200px]">
+              {account}
+            </span>
+            <button
+              onClick={changeWallet}
+              className="px-3 py-2 bg-blue-500 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors"
+            >
+              Change
+            </button>
+            <button
+              onClick={disconnectWallet}
+              className="px-3 py-2 bg-red-500 rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors"
+            >
+              Disconnect
+            </button>
+          </div>
         ) : (
           <button
             onClick={connectWallet}
@@ -122,12 +163,12 @@ export default function App() {
              focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1 
              focus:text-white transition-all bg-white/10 backdrop-blur-sm"
               placeholder="Add a new task..."
-              disabled={loading} // disable input while loading
+              disabled={loading}
             />
             <button
               onClick={addTask}
               className="px-6 py-3 bg-gradient-to-r from-pink-500 to-yellow-400 rounded-xl font-semibold hover:scale-105 transition-transform shadow-md disabled:opacity-50"
-              disabled={loading} // disable button while loading
+              disabled={loading}
             >
               {loading ? "Adding..." : "Add"}
             </button>
@@ -138,7 +179,7 @@ export default function App() {
             {loading && <TaskSkeleton />}
             {!loading && tasks.length === 0 && (
               <p className="text-gray-300 text-center mt-4">
-                No tasks yet. Add your first task! ✨
+                No pending tasks. Add your first one! ✨
               </p>
             )}
             {!loading &&
@@ -147,22 +188,19 @@ export default function App() {
                   key={index}
                   className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-2xl shadow-lg hover:scale-105 transition-transform"
                 >
-                  <span
-                    className={`text-lg font-medium break-words ${
-                      task.completed ? "line-through text-gray-400" : "text-white"
-                    }`}
-                  >
-                    {task.content}
-                  </span>
+                  <div>
+                    <span className="text-lg font-medium break-words text-white">
+                      {task.content}
+                    </span>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Started: {formatTime(task.timestamp)}
+                    </p>
+                  </div>
                   <button
                     onClick={() => toggleTask(task.id)}
-                    className={`px-4 py-2 rounded-lg font-semibold shadow-md ${
-                      task.completed
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-green-500 hover:bg-green-600"
-                    } transition-colors`}
+                    className="px-4 py-2 rounded-lg font-semibold shadow-md bg-green-500 hover:bg-green-600 transition-colors"
                   >
-                    {task.completed ? "Undo" : "Done"}
+                    Done
                   </button>
                 </li>
               ))}
