@@ -20,14 +20,22 @@ export default function App() {
     }
   };
 
-  // Change wallet (switch account)
+  // Change wallet (force MetaMask to open account switch modal)
   const changeWallet = async () => {
     if (window.ethereum) {
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      setAccount(accounts[0]);
-      loadTasks();
+      try {
+        await window.ethereum.request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+        setAccount(accounts[0]);
+        loadTasks();
+      } catch (error) {
+        console.error("Wallet change rejected:", error);
+      }
     }
   };
 
@@ -54,7 +62,7 @@ export default function App() {
       loadedTasks.push(task);
     }
 
-    // filter out completed tasks
+    // show only pending tasks
     const pendingTasks = loadedTasks.filter((t) => !t.completed);
     setTasks(pendingTasks.reverse());
   };
@@ -99,6 +107,18 @@ export default function App() {
     if (account) {
       loadTasks();
     }
+
+    // Listen for account change from MetaMask
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          loadTasks();
+        } else {
+          disconnectWallet();
+        }
+      });
+    }
   }, [account]);
 
   // Skeleton loader component
@@ -109,7 +129,7 @@ export default function App() {
     </div>
   );
 
-  // format timestamp → assuming your contract stores `timestamp`
+  // format timestamp → assuming contract stores `timestamp`
   const formatTime = (ts) => {
     if (!ts) return "";
     const date = new Date(Number(ts) * 1000);
@@ -117,96 +137,106 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 text-white flex flex-col items-center p-6">
-      {/* Navbar */}
-      <nav className="w-full max-w-5xl flex justify-between items-center mb-8 py-4 px-6 bg-gray-900/70 rounded-xl shadow-lg backdrop-blur-sm">
-        <h1 className="text-3xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400">
-          Etherlist
-        </h1>
+    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 text-white">
+      <div className="flex flex-col items-center p-6">
+        {/* Navbar */}
+        <nav className="w-full max-w-5xl flex justify-between items-center mb-8 py-4 px-6 bg-gray-900/70 rounded-xl shadow-lg backdrop-blur-sm">
+          <h1 className="text-3xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400">
+            Etherlist
+          </h1>
 
-        {account ? (
-          <div className="flex items-center gap-3">
-            <span className="px-4 py-2 bg-indigo-600 rounded-full text-sm font-medium truncate max-w-[200px]">
-              {account}
-            </span>
+          {account ? (
+            <div className="flex items-center gap-3">
+              <span className="px-4 py-2 bg-indigo-600 rounded-full text-sm font-medium truncate max-w-[200px]">
+                {account}
+              </span>
+              <button
+                onClick={changeWallet}
+                className="px-3 py-2 bg-blue-500 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors"
+              >
+                Change
+              </button>
+              <button
+                onClick={disconnectWallet}
+                className="px-3 py-2 bg-red-500 rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={changeWallet}
-              className="px-3 py-2 bg-blue-500 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors"
+              onClick={connectWallet}
+              className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl text-sm font-semibold shadow-md hover:scale-105 transition-transform"
             >
-              Change
+              Connect Wallet
             </button>
-            <button
-              onClick={disconnectWallet}
-              className="px-3 py-2 bg-red-500 rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors"
-            >
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={connectWallet}
-            className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded-xl text-sm font-semibold shadow-md hover:scale-105 transition-transform"
-          >
-            Connect Wallet
-          </button>
-        )}
-      </nav>
+          )}
+        </nav>
 
-      {/* Input Section */}
-      {account && (
-        <div className="w-full max-w-2xl flex flex-col gap-6">
-          <div className="flex gap-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-xl text-black placeholder-gray-500 font-medium 
-             focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1 
-             focus:text-white transition-all bg-white/10 backdrop-blur-sm"
-              placeholder="Add a new task..."
-              disabled={loading}
-            />
-            <button
-              onClick={addTask}
-              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-yellow-400 rounded-xl font-semibold hover:scale-105 transition-transform shadow-md disabled:opacity-50"
-              disabled={loading}
-            >
-              {loading ? "Adding..." : "Add"}
-            </button>
-          </div>
+        {/* Input Section */}
+        {account && (
+          <div className="w-full max-w-2xl flex flex-col gap-6">
+            <div className="flex gap-3">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 px-4 py-3 rounded-xl text-black placeholder-gray-500 font-medium 
+                focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1 
+                focus:text-white transition-all bg-white/10 backdrop-blur-sm"
+                placeholder="Add a new task..."
+                disabled={loading}
+              />
+              <button
+                onClick={addTask}
+                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-yellow-400 rounded-xl font-semibold hover:scale-105 transition-transform shadow-md disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? "Adding..." : "Add"}
+              </button>
+            </div>
 
-          {/* Task List */}
-          <ul className="flex flex-col gap-4">
-            {loading && <TaskSkeleton />}
-            {!loading && tasks.length === 0 && (
-              <p className="text-gray-300 text-center mt-4">
-                No pending tasks. Add your first one! ✨
-              </p>
-            )}
-            {!loading &&
-              tasks.map((task, index) => (
-                <li
-                  key={index}
-                  className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-2xl shadow-lg hover:scale-105 transition-transform"
-                >
-                  <div>
-                    <span className="text-lg font-medium break-words text-white">
-                      {task.content}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Started: {formatTime(task.timestamp)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => toggleTask(task.id)}
-                    className="px-4 py-2 rounded-lg font-semibold shadow-md bg-green-500 hover:bg-green-600 transition-colors"
+            {/* Task List */}
+            <ul className="flex flex-col gap-4">
+              {loading && <TaskSkeleton />}
+              {!loading && tasks.length === 0 && (
+                <p className="text-gray-300 text-center mt-4">
+                  No pending tasks. Add your first one! ✨
+                </p>
+              )}
+              {!loading &&
+                tasks.map((task, index) => (
+                  <li
+                    key={index}
+                    className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-2xl shadow-lg hover:scale-105 transition-transform"
                   >
-                    Done
-                  </button>
-                </li>
-              ))}
-          </ul>
-        </div>
-      )}
+                    <div>
+                      <span className="text-lg font-medium break-words text-white">
+                        {task.content}
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Started: {formatTime(task.timestamp)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleTask(task.id)}
+                      className="px-4 py-2 rounded-lg font-semibold shadow-md bg-green-500 hover:bg-green-600 transition-colors"
+                    >
+                      Done
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="w-full text-center py-4 bg-gray-900/60 mt-10 backdrop-blur-sm">
+        <p className="text-sm text-gray-300">
+          Made with <span className="text-pink-400">❤️</span> by{" "}
+          <span className="font-semibold text-white">xeylous</span>
+        </p>
+      </footer>
     </div>
   );
 }
