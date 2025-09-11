@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "./contractConfig.js";
 
+import About from "./components/About.jsx";
+
 export default function App() {
   const [account, setAccount] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -226,7 +228,7 @@ export default function App() {
           </div>
         )}
       </div>
-
+        <About />
       {/* Footer */}
       <footer className="w-full text-center py-4 bg-gray-900/60 backdrop-blur-sm mt-10">
         <p className="text-xs sm:text-sm text-gray-300">
