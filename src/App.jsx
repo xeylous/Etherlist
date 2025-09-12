@@ -9,6 +9,7 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [action, setAction] = useState(null);
 
   // Connect wallet
   const connectWallet = async () => {
@@ -72,6 +73,7 @@ export default function App() {
   const addTask = async () => {
     if (!input) return;
     setLoading(true);
+    setAction("add");
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(
@@ -84,12 +86,14 @@ export default function App() {
     await tx.wait();
     setInput("");
     setLoading(false);
+    setAction(null);
     loadTasks();
   };
 
   // Toggle task
   const toggleTask = async (id) => {
     setLoading(true);
+    setAction("done");
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(
@@ -101,6 +105,7 @@ export default function App() {
     const tx = await contract.toggleTask(id);
     await tx.wait();
     setLoading(false);
+    setAction(null);
     loadTasks();
   };
 
@@ -146,21 +151,23 @@ export default function App() {
 
           {account ? (
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-              <span className="px-3 py-2 bg-indigo-600 rounded-full text-xs sm:text-sm font-medium truncate max-w-[200px]">
+              <span className="px-3 py-2 bg-indigo-600 rounded-full text-xs sm:text-sm font-medium truncate max-w-[200px] text-center sm:text-left">
                 {account}
               </span>
-              <button
-                onClick={changeWallet}
-                className="px-3 py-2 bg-blue-500 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-600 transition-colors"
-              >
-                Change
-              </button>
-              <button
-                onClick={disconnectWallet}
-                className="px-3 py-2 bg-red-500 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
-              >
-                Disconnect
-              </button>
+              <div className="flex flex-row gap-3">
+                <button
+                  onClick={changeWallet}
+                  className="px-3 py-2 bg-blue-500 rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-600 transition-colors"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={disconnectWallet}
+                  className="px-3 py-2 bg-red-500 rounded-lg text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
             </div>
           ) : (
             <button
@@ -185,12 +192,13 @@ export default function App() {
                 placeholder="Add a new task..."
                 disabled={loading}
               />
+              {/* Add Task Button */}
               <button
                 onClick={addTask}
                 className="px-6 py-3 bg-gradient-to-r from-pink-500 to-yellow-400 rounded-xl font-semibold hover:scale-105 transition-transform shadow-md disabled:opacity-50 text-sm sm:text-base"
-                disabled={loading}
+                disabled={loading && action === "add"}
               >
-                {loading ? "Adding..." : "Add"}
+                {loading && action === "add" ? "Adding..." : "Add"}
               </button>
             </div>
 
@@ -219,8 +227,9 @@ export default function App() {
                     <button
                       onClick={() => toggleTask(task.id)}
                       className="px-4 py-2 rounded-lg font-semibold shadow-md bg-green-500 hover:bg-green-600 transition-colors text-sm sm:text-base"
+                      disabled={loading && action === "done"}
                     >
-                      Done
+                      {loading && action === "done" ? "Task Done..." : "Done"}
                     </button>
                   </li>
                 ))}
@@ -228,7 +237,7 @@ export default function App() {
           </div>
         )}
       </div>
-        <About />
+      <About />
       {/* Footer */}
       <footer className="w-full text-center py-4 bg-gray-900/60 backdrop-blur-sm mt-10">
         <p className="text-xs sm:text-sm text-gray-300">
