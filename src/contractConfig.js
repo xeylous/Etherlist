@@ -1,6 +1,6 @@
 // Paste your deployed contract address and ABI here
 
-export const CONTRACT_ADDRESS = "0x321e778cf05F89c510a0f3f02B81B166078F5eA1";
+export const CONTRACT_ADDRESS = "0xfccB89A8B8646bdE9240e72FC356da6664814dB7";
 
 export const CONTRACT_ABI = 
   // paste the ABI array from Remix here
@@ -38,6 +38,12 @@ export const CONTRACT_ABI =
 				"internalType": "bool",
 				"name": "completed",
 				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
 			}
 		],
 		"name": "TaskCreated",
@@ -112,9 +118,14 @@ export const CONTRACT_ABI =
 				"internalType": "bool",
 				"name": "completed",
 				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
 		"type": "function"
 	}
-];
+]
